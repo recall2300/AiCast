@@ -129,7 +129,7 @@ npm start
 
 **터미널 3 — ngrok 터널:**
 ```powershell
-ngrok http --url=your-name.ngrok-free.dev 3000
+ngrok http --domain=your-name.ngrok-free.dev 3000
 ```
 
 아래처럼 나오면 정상:
@@ -157,7 +157,7 @@ timeout /t 8 /nobreak >nul
 start "AiCast" cmd /k "cd /d C:\AiCast && npm start"
 timeout /t 5 /nobreak >nul
 
-start "ngrok" ngrok http --url=your-name.ngrok-free.dev 3000
+start "ngrok" ngrok http --domain=your-name.ngrok-free.dev 3000
 
 echo.
 echo AiCast 실행 중
