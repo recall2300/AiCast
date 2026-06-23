@@ -48,7 +48,8 @@ function LoginForm() {
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
       if (res.ok && data.ok) {
-        const from = searchParams.get('from') ?? '/';
+        const raw = searchParams.get('from') ?? '/';
+        const from = raw.startsWith('/') && !raw.startsWith('//') && !raw.includes('\\') ? raw : '/';
         router.push(from);
         router.refresh();
       } else {
