@@ -56,11 +56,17 @@ function tokenEqual(a: string, b: string): boolean {
 // ─── Rate limiting (IP당 일일 생성 횟수) ─────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; date: string }>();
 
+const RATE_LIMIT_MAP_MAX = 5000;
+
 // 매 시간 이전 날짜 항목 정리 (메모리 누수 방지)
 setInterval(() => {
   const today = new Date().toISOString().slice(0, 10);
   for (const [key, entry] of rateLimitMap.entries()) {
     if (entry.date !== today) rateLimitMap.delete(key);
+  }
+  if (rateLimitMap.size > RATE_LIMIT_MAP_MAX) {
+    console.warn(`[AiCast] Rate limit map 크기 이상: ${rateLimitMap.size} — DDoS 가능성`);
+    rateLimitMap.clear();
   }
 }, 60 * 60 * 1000).unref();
 
@@ -72,6 +78,7 @@ function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
   const entry = rateLimitMap.get(ip);
 
   if (!entry || entry.date !== today) {
+    if (rateLimitMap.size >= RATE_LIMIT_MAP_MAX) rateLimitMap.clear();
     rateLimitMap.set(ip, { count: 1, date: today });
     return { allowed: true, remaining: limit - 1 };
   }
