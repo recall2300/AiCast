@@ -145,6 +145,15 @@ export default function HomePage() {
   const prevAudioUrlRef = useRef<string | null>(null);
   const msgIdCounterRef = useRef(0);
 
+  useEffect(() => {
+    return () => {
+      if (prevAudioUrlRef.current) {
+        URL.revokeObjectURL(prevAudioUrlRef.current);
+        prevAudioUrlRef.current = null;
+      }
+    };
+  }, []);
+
   const addProgress = useCallback((stage: 'script' | 'audio', message: string) => {
     setProgressMsgs((prev) => [...prev, { id: ++msgIdCounterRef.current, stage, message }]);
   }, []);
