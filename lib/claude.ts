@@ -81,7 +81,8 @@ ${isLast ? '마지막 챕터이므로 따뜻한 마무리 인사로 끝내세요
 export async function generateSingleScript(
   topic: string,
   targetWords: number,
-  tone: BroadcastTone
+  tone: BroadcastTone,
+  options?: { signal?: AbortSignal }
 ): Promise<GenerationResult> {
   const userPrompt = buildSinglePrompt(topic, targetWords);
   const stream = client.messages.stream({
@@ -95,7 +96,7 @@ export async function generateSingleScript(
       },
     ],
     messages: [{ role: 'user', content: userPrompt }],
-  });
+  }, { signal: options?.signal });
 
   let fullText = '';
   for await (const event of stream) {
@@ -114,7 +115,8 @@ export async function generateSingleScript(
 export async function generateOutline(
   topic: string,
   chapters: number,
-  tone: BroadcastTone
+  tone: BroadcastTone,
+  options?: { signal?: AbortSignal }
 ): Promise<OutlineResult> {
   const userPrompt = buildOutlinePrompt(topic, chapters);
   const response = await client.messages.create({
@@ -128,7 +130,7 @@ export async function generateOutline(
       },
     ],
     messages: [{ role: 'user', content: userPrompt }],
-  });
+  }, { signal: options?.signal });
 
   const rawText =
     response.content.find((b) => b.type === 'text')?.text ?? '{"chapters":[]}';
@@ -161,7 +163,8 @@ export async function generateChapter(
   chapterIndex: number,
   previousChapters: string[],
   totalWords: number,
-  tone: BroadcastTone
+  tone: BroadcastTone,
+  options?: { signal?: AbortSignal }
 ): Promise<GenerationResult> {
   const wordsPerChapter = Math.ceil(totalWords / outline.length);
 
@@ -181,7 +184,7 @@ export async function generateChapter(
         content: buildChapterPrompt(topic, outline, chapterIndex, previousChapters, wordsPerChapter),
       },
     ],
-  });
+  }, { signal: options?.signal });
 
   let chapterText = '';
   for await (const event of stream) {

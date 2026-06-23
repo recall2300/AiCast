@@ -107,9 +107,25 @@ function httpPost(path: string, body: object, timeoutMs = 120_000): Promise<unkn
 }
 
 
+function validateWavBuffer(buf: Buffer, index: number): void {
+  if (buf.length < 44) throw new Error(`청크 ${index}: WAV 버퍼가 너무 짧습니다 (${buf.length}bytes)`);
+  if (buf.toString('ascii', 0, 4) !== 'RIFF') throw new Error(`청크 ${index}: RIFF 헤더 없음`);
+  if (buf.toString('ascii', 8, 12) !== 'WAVE') throw new Error(`청크 ${index}: WAVE 포맷 없음`);
+}
+
 function concatWavBuffers(buffers: Buffer[]): Buffer {
   if (buffers.length === 0) throw new Error('WAV 버퍼가 없습니다');
   if (buffers.length === 1) return buffers[0];
+
+  buffers.forEach((b, i) => validateWavBuffer(b, i));
+
+  // 첫 번째 청크 기준으로 샘플레이트·채널 수 일치 여부 확인 (fmt 청크: bytes 20–44)
+  const firstFmt = buffers[0].subarray(20, 44);
+  for (let i = 1; i < buffers.length; i++) {
+    if (!firstFmt.equals(buffers[i].subarray(20, 44))) {
+      throw new Error(`청크 ${i}: 오디오 포맷 불일치 (샘플레이트 또는 채널 수가 다름)`);
+    }
+  }
 
   const PCM_OFFSET = 44;
   const pcmChunks = buffers.map((b) => b.subarray(PCM_OFFSET));

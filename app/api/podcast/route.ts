@@ -102,6 +102,26 @@ function fmtTokenLog(label: string, usage: TokenUsage, total: TokenUsage): strin
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  // CSRF: Origin 헤더가 있는 경우 Host와 일치 여부 확인
+  const origin = req.headers.get('origin');
+  if (origin) {
+    try {
+      const originHost = new URL(origin).host;
+      const host = req.headers.get('host') ?? '';
+      if (originHost !== host) {
+        return new Response(JSON.stringify({ error: '잘못된 요청 출처입니다.' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    } catch {
+      return new Response(JSON.stringify({ error: '잘못된 Origin 헤더입니다.' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  }
+
   // 인증 이중 확인 (미들웨어 외 route 레벨 방어)
   if (process.env.ACCESS_PASSWORD) {
     const token = req.cookies.get('aicast-auth')?.value ?? '';
@@ -154,10 +174,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const encoder = new TextEncoder();
+  const { signal } = req;
 
   const stream = new ReadableStream({
     async start(controller) {
       const send = (event: string, data: object) => {
+        if (signal.aborted) return;
         controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       };
 
@@ -185,25 +207,26 @@ export async function POST(req: NextRequest): Promise<Response> {
           send('progress', { stage: 'script', message: '📝 직접 입력한 스크립트를 사용합니다.', chapter: 1, totalChapters: 1 });
         } else if (config.chapters === 1) {
           send('progress', { stage: 'script', message: '✍️ 라디오 DJ 스크립트를 작성하고 있어요...', chapter: 1, totalChapters: 1 });
-          const result = await generateSingleScript(topic, config.words, tone);
+          const result = await generateSingleScript(topic, config.words, tone, { signal });
           fullScript = result.text;
           sendTokens('스크립트', result.usage, result.promptPreview);
         } else {
           send('progress', { stage: 'script', message: '📋 방송 개요를 구성하고 있어요...', chapter: 0, totalChapters: config.chapters });
-          const outlineResult = await generateOutline(topic, config.chapters, tone);
+          const outlineResult = await generateOutline(topic, config.chapters, tone, { signal });
           sendTokens('개요', outlineResult.usage, outlineResult.promptPreview);
 
           const { chapters: outline } = outlineResult;
           const chapterTexts: string[] = [];
 
           for (let i = 0; i < config.chapters; i++) {
+            if (signal.aborted) break;
             send('progress', {
               stage: 'script',
               message: `✍️ 챕터 ${i + 1}/${config.chapters} 작성 중: ${outline[i]?.title ?? ''}`,
               chapter: i + 1,
               totalChapters: config.chapters,
             });
-            const result = await generateChapter(topic, outline, i, chapterTexts, config.words, tone);
+            const result = await generateChapter(topic, outline, i, chapterTexts, config.words, tone, { signal });
             chapterTexts.push(result.text);
             sendTokens(`챕터 ${i + 1}/${config.chapters}`, result.usage, result.promptPreview);
           }
