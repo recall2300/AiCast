@@ -155,7 +155,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const body = (await req.json()) as PodcastRequest;
   const {
-    topic,
+    topic = '',
     durationMin,
     voiceId,
     steps = DEFAULT_SUPERTONIC_STEPS,
