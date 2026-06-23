@@ -105,7 +105,7 @@ function fmtTokenLog(label: string, usage: TokenUsage, total: TokenUsage): strin
   if (usage.cacheReadTokens > 0) parts.push(`캐시절감 ${usage.cacheReadTokens.toLocaleString()}`);
   const cost = calcCost(usage);
   const totalCost = calcCost(total);
-  return `[${label}] ${parts.join(' / ')} tok — $${cost.toFixed(4)} (누적 $${totalCost.toFixed(4)})`;
+  return `[${label}] ${parts.join(' / ')} — $${cost.toFixed(4)} (누적 $${totalCost.toFixed(4)})`;
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
