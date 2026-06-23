@@ -21,7 +21,6 @@ import {
 type AppStatus = 'idle' | 'generating' | 'done' | 'error';
 type InputMode = 'ai' | 'direct';
 
-let msgIdCounter = 0;
 
 interface TokenLogEntry {
   id: number;
@@ -82,7 +81,10 @@ export default function HomePage() {
 
   useEffect(() => {
     // 인증 활성화 여부 확인 (로그아웃 버튼 표시 여부)
-    fetch('/api/auth/status').then((r) => { if (r.ok) r.json().then((d: { enabled: boolean }) => setAuthEnabled(d.enabled)); }).catch(() => {});
+    fetch('/api/auth/status')
+      .then((r) => { if (r.ok) return r.json(); throw new Error(`HTTP ${r.status}`); })
+      .then((d: { enabled: boolean }) => setAuthEnabled(d.enabled))
+      .catch((err) => console.warn('[AiCast] 인증 상태 확인 실패:', err));
   }, []);
 
   useEffect(() => {
@@ -141,13 +143,14 @@ export default function HomePage() {
   const [errorMsg,     setErrorMsg]     = useState<string | null>(null);
   const [wordCount,    setWordCount]    = useState(0);
   const prevAudioUrlRef = useRef<string | null>(null);
+  const msgIdCounterRef = useRef(0);
 
   const addProgress = useCallback((stage: 'script' | 'audio', message: string) => {
-    setProgressMsgs((prev) => [...prev, { id: ++msgIdCounter, stage, message }]);
+    setProgressMsgs((prev) => [...prev, { id: ++msgIdCounterRef.current, stage, message }]);
   }, []);
 
   const addTokenLog = useCallback((logLine: string, promptPreview = '', isSummary = false) => {
-    setTokenLogs((prev) => [...prev, { id: ++msgIdCounter, logLine, promptPreview, isSummary }]);
+    setTokenLogs((prev) => [...prev, { id: ++msgIdCounterRef.current, logLine, promptPreview, isSummary }]);
   }, []);
 
   const handleGenerate = useCallback(async () => {

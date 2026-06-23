@@ -11,12 +11,15 @@ export function zeroUsage(): TokenUsage {
 }
 
 function extractUsage(usage: Anthropic.Usage): TokenUsage {
-  const u = usage as unknown as Record<string, number>;
+  const ext = usage as Anthropic.Usage & {
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
   return {
     inputTokens: usage.input_tokens,
     outputTokens: usage.output_tokens,
-    cacheCreationTokens: u.cache_creation_input_tokens ?? 0,
-    cacheReadTokens: u.cache_read_input_tokens ?? 0,
+    cacheCreationTokens: ext.cache_creation_input_tokens ?? 0,
+    cacheReadTokens: ext.cache_read_input_tokens ?? 0,
   };
 }
 
