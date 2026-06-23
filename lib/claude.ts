@@ -140,11 +140,14 @@ export async function generateOutline(
   const usage = extractUsage(response.usage);
   const promptPreview = userPrompt.slice(0, 160).replace(/\n/g, ' ');
 
-  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return { chapters: generateFallbackOutline(topic, chapters), usage, promptPreview };
+  const start = rawText.indexOf('{');
+  const end = rawText.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) {
+    return { chapters: generateFallbackOutline(topic, chapters), usage, promptPreview };
+  }
 
   try {
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(rawText.slice(start, end + 1));
     return { chapters: parsed.chapters as OutlineChapter[], usage, promptPreview };
   } catch {
     return { chapters: generateFallbackOutline(topic, chapters), usage, promptPreview };
