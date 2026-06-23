@@ -38,9 +38,16 @@ function validateRequest(body: PodcastRequest): string | null {
   return null;
 }
 
-// ─── 에러 메시지 정제 (API 키 등 민감 정보 제거) ──────────────────────────────
+// ─── 에러 메시지 정제 (API 키·경로 등 민감 정보 제거) ────────────────────────
 function sanitizeError(message: string): string {
-  return message.replace(/sk-ant-[A-Za-z0-9\-]+/g, '[REDACTED]').slice(0, 300);
+  return message
+    .replace(/sk-ant-[A-Za-z0-9\-]+/g, '[REDACTED]')      // Anthropic API key
+    .replace(/(?:\/home|\/root|\/var|\/etc|C:\\)[^\s,'"]+/gi, '[PATH]') // 파일 경로
+    .replace(/\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g, '[IP]')       // IP 주소
+    .replace(/\bat\s+\S+:\d+:\d+/g, '')                    // 스택 트레이스 프레임
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, 300);
 }
 
 // ─── 인증 확인 (Node.js crypto — timing-safe) ─────────────────────────────────
