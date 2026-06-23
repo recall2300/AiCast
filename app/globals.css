@@ -1,0 +1,164 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Space Grotesk", Inter, system-ui, sans-serif;
+  --animate-blink: blink 1.4s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+/* ── 라이트 테마 (기본) ───────────────────────────────────────────────── */
+:root {
+  --bg:              #F8FAFC;
+  --card:            #FFFFFF;
+  --input:           #F1F5F9;
+  --card-border:     #E2E8F0;
+
+  --fg:              #0F172A;
+  --fg-2:            #475569;
+  --fg-3:            #94A3B8;
+
+  --accent:          #D97706;
+  --accent-light:    rgba(217, 119, 6, 0.1);
+  --accent-glow:     rgba(217, 119, 6, 0.25);
+
+  --btn-bg:          #F59E0B;
+  --btn-fg:          #FFFFFF;
+  --btn-off-bg:      #E2E8F0;
+  --btn-off-fg:      #94A3B8;
+
+  /* 섹션 A — 스크립트 (파란) */
+  --sec-a:           #2563EB;
+  --sec-a-border:    #BFDBFE;
+  --sel-a:           #EFF6FF;
+  --sel-a-border:    rgba(37, 99, 235, 0.35);
+  --sel-a-glow:      rgba(37, 99, 235, 0.08);
+
+  /* 섹션 B — 음성 (분홍) */
+  --sec-b:           #DB2777;
+  --sec-b-border:    #FBCFE8;
+  --sel-b:           #FDF2F8;
+  --sel-b-border:    rgba(219, 39, 119, 0.35);
+
+  /* 기본 선택 (방송톤 등) */
+  --sel-d:           #FFFBEB;
+  --sel-d-border:    rgba(217, 119, 6, 0.4);
+  --sel-d-glow:      rgba(217, 119, 6, 0.06);
+
+  --error-bg:        #FEF2F2;
+  --error-border:    rgba(239, 68, 68, 0.5);
+  --error-fg:        #B91C1C;
+
+  --log-bg:          #F8FAFC;
+  --log-border:      #E2E8F0;
+  --log-summary:     #D97706;
+
+  --muted-dot:       #CBD5E1;
+  --sky-dot:         #38BDF8;
+}
+
+/* ── 다크 테마 ────────────────────────────────────────────────────────── */
+.dark {
+  --bg:              #070B14;
+  --card:            #0D1424;
+  --input:           #131D33;
+  --card-border:     #243358;
+
+  --fg:              #E8EBF2;
+  --fg-2:            #94A3B8;
+  --fg-3:            #4B5D7A;
+
+  --accent:          #FBBF24;
+  --accent-light:    rgba(251, 191, 36, 0.12);
+  --accent-glow:     rgba(251, 191, 36, 0.28);
+
+  --btn-bg:          #FBBF24;
+  --btn-fg:          #0D1424;
+  --btn-off-bg:      #1A2642;
+  --btn-off-fg:      #4B5D7A;
+
+  --sec-a:           #60A5FA;
+  --sec-a-border:    #243358;
+  --sel-a:           #1A2642;
+  --sel-a-border:    rgba(251, 191, 36, 0.45);
+  --sel-a-glow:      rgba(251, 191, 36, 0.10);
+
+  --sec-b:           #F472B6;
+  --sec-b-border:    #2D3A52;
+  --sel-b:           #1A2642;
+  --sel-b-border:    rgba(244, 114, 182, 0.4);
+
+  --sel-d:           #1A2642;
+  --sel-d-border:    rgba(251, 191, 36, 0.45);
+  --sel-d-glow:      rgba(251, 191, 36, 0.10);
+
+  --error-bg:        rgba(127, 29, 29, 0.3);
+  --error-border:    rgba(153, 27, 27, 0.5);
+  --error-fg:        #FCA5A5;
+
+  --log-bg:          #0A0F1E;
+  --log-border:      #1A2642;
+  --log-summary:     #FBBF24;
+
+  --muted-dot:       #4B5D7A;
+  --sky-dot:         #38BDF8;
+}
+
+/* ── 시스템 다크 모드 자동 적용 (JS가 없거나 .dark 클래스 없을 때 폴백) ── */
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme-override]) {
+    --bg:              #070B14;
+    --card:            #0D1424;
+    --input:           #131D33;
+    --card-border:     #243358;
+    --fg:              #E8EBF2;
+    --fg-2:            #94A3B8;
+    --fg-3:            #4B5D7A;
+    --accent:          #FBBF24;
+    --accent-light:    rgba(251, 191, 36, 0.12);
+    --accent-glow:     rgba(251, 191, 36, 0.28);
+    --btn-bg:          #FBBF24;
+    --btn-fg:          #0D1424;
+    --btn-off-bg:      #1A2642;
+    --btn-off-fg:      #4B5D7A;
+    --sec-a:           #60A5FA;
+    --sec-a-border:    #243358;
+    --sel-a:           #1A2642;
+    --sel-a-border:    rgba(251, 191, 36, 0.45);
+    --sel-a-glow:      rgba(251, 191, 36, 0.10);
+    --sec-b:           #F472B6;
+    --sec-b-border:    #2D3A52;
+    --sel-b:           #1A2642;
+    --sel-b-border:    rgba(244, 114, 182, 0.4);
+    --sel-d:           #1A2642;
+    --sel-d-border:    rgba(251, 191, 36, 0.45);
+    --sel-d-glow:      rgba(251, 191, 36, 0.10);
+    --error-bg:        rgba(127, 29, 29, 0.3);
+    --error-border:    rgba(153, 27, 27, 0.5);
+    --error-fg:        #FCA5A5;
+    --log-bg:          #0A0F1E;
+    --log-border:      #1A2642;
+    --log-summary:     #FBBF24;
+    --muted-dot:       #4B5D7A;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--input); }
+::-webkit-scrollbar-thumb { background: var(--card-border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+textarea { resize: vertical; }
