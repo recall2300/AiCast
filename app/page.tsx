@@ -45,7 +45,7 @@ function parseSSEChunk(
   let currentData  = '';
   for (const line of lines) {
     if (line.startsWith('event: '))      { currentEvent = line.slice(7).trim(); }
-    else if (line.startsWith('data: '))  { currentData  = line.slice(6).trim(); }
+    else if (line.startsWith('data: '))  { currentData = currentData ? currentData + '\n' + line.slice(6).trim() : line.slice(6).trim(); }
     else if (line === '' && currentEvent && currentData) {
       try {
         const parsed = JSON.parse(currentData);
@@ -195,7 +195,10 @@ export default function HomePage() {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          buffer += decoder.decode();
+          break;
+        }
         buffer += decoder.decode(value, { stream: true });
         const events = buffer.split('\n\n');
         buffer = events.pop() ?? '';
