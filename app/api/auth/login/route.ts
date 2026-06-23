@@ -13,13 +13,20 @@ function passwordEqual(a: string, b: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const { password } = (await req.json()) as { password?: string };
+  const body = (await req.json()) as unknown;
+  const password = body && typeof body === 'object' && 'password' in body
+    ? (body as { password: unknown }).password
+    : undefined;
 
   if (!process.env.ACCESS_PASSWORD || !process.env.ACCESS_TOKEN) {
     return NextResponse.json({ error: '서버 설정 오류' }, { status: 500 });
   }
 
-  if (!password || !passwordEqual(password, process.env.ACCESS_PASSWORD)) {
+  if (typeof password !== 'string' || !password.trim()) {
+    return NextResponse.json({ error: '비밀번호를 입력해주세요.' }, { status: 400 });
+  }
+
+  if (!passwordEqual(password, process.env.ACCESS_PASSWORD)) {
     return NextResponse.json({ error: '비밀번호가 틀렸습니다.' }, { status: 401 });
   }
 
