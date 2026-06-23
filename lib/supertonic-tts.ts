@@ -150,7 +150,6 @@ export async function synthesizeChunksSupertonic(
 
   for (let batchStart = 0; batchStart < chunks.length; batchStart += BATCH_SIZE) {
     const batchChunks = chunks.slice(batchStart, batchStart + BATCH_SIZE);
-    onProgress(batchStart, chunks.length);
 
     const items: SupertonicBatchRequestItem[] = batchChunks.map((text) => ({
       text: cleanText(text),
@@ -166,9 +165,10 @@ export async function synthesizeChunksSupertonic(
     for (const item of data.items) {
       wavBuffers.push(Buffer.from(item.audio_base64, 'base64'));
     }
+
+    onProgress(Math.min(batchStart + BATCH_SIZE, chunks.length), chunks.length);
   }
 
-  onProgress(chunks.length, chunks.length);
   return concatWavBuffers(wavBuffers);
 }
 
