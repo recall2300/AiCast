@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { SUPERTONIC_VOICES, DEFAULT_SUPERTONIC_VOICE_ID, SUPERTONIC_TTS_CHUNK_SIZE } from './constants';
 
-const SUPERTONIC_HOST = process.env.SUPERTONIC_TTS_URL ?? 'http://localhost:7799';
+const SUPERTONIC_HOST = process.env.SUPERTONIC_TTS_URL ?? 'http://localhost:7788';
 const BATCH_SIZE = 64;
 
 interface SupertonicBatchRequestItem {

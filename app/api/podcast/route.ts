@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { NextRequest } from 'next/server';
 import {
   DURATION_CONFIG,
@@ -7,6 +8,10 @@ import {
   DEFAULT_SUPERTONIC_SPEED,
   CLAUDE_PRICING,
   DEFAULT_TONE,
+  SUPERTONIC_VOICES,
+  SUPERTONIC_STEPS_OPTIONS,
+  SPEED_OPTIONS,
+  BROADCAST_TONES,
 } from '@/lib/constants';
 import { generateSingleScript, generateOutline, generateChapter, addUsage, zeroUsage } from '@/lib/claude';
 import { chunkText, synthesizeChunksSupertonic } from '@/lib/supertonic-tts';
@@ -15,8 +20,49 @@ import type { PodcastRequest, TokenUsage } from '@/types/podcast';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
+// ─── 입력값 검증 ──────────────────────────────────────────────────────────────
+const VALID_STEPS = new Set<number>(SUPERTONIC_STEPS_OPTIONS.map((o) => o.value));
+const VALID_SPEEDS = new Set<number>(SPEED_OPTIONS.map((o) => o.value));
+const VALID_TONES = new Set<string>(BROADCAST_TONES.map((o) => o.key));
+const VALID_VOICE_IDS = new Set<string>(SUPERTONIC_VOICES.map((v) => v.id));
+
+function validateRequest(body: PodcastRequest): string | null {
+  const { topic, directScript, steps, speed, tone, voiceId } = body;
+  if (!directScript && !topic?.trim()) return '주제를 입력해주세요.';
+  if (topic && topic.length > 2000) return '주제는 2000자 이하여야 합니다.';
+  if (directScript && directScript.length > 50000) return '스크립트는 50,000자 이하여야 합니다.';
+  if (steps !== undefined && !VALID_STEPS.has(steps)) return '유효하지 않은 steps 값입니다.';
+  if (speed !== undefined && !VALID_SPEEDS.has(speed)) return '유효하지 않은 speed 값입니다.';
+  if (tone && !VALID_TONES.has(tone)) return '유효하지 않은 방송 톤입니다.';
+  if (voiceId && !VALID_VOICE_IDS.has(voiceId)) return '유효하지 않은 보이스 ID입니다.';
+  return null;
+}
+
+// ─── 에러 메시지 정제 (API 키 등 민감 정보 제거) ──────────────────────────────
+function sanitizeError(message: string): string {
+  return message.replace(/sk-ant-[A-Za-z0-9\-]+/g, '[REDACTED]').slice(0, 300);
+}
+
+// ─── 인증 확인 (Node.js crypto — timing-safe) ─────────────────────────────────
+function tokenEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
 // ─── Rate limiting (IP당 일일 생성 횟수) ─────────────────────────────────────
 const rateLimitMap = new Map<string, { count: number; date: string }>();
+
+// 매 시간 이전 날짜 항목 정리 (메모리 누수 방지)
+setInterval(() => {
+  const today = new Date().toISOString().slice(0, 10);
+  for (const [key, entry] of rateLimitMap.entries()) {
+    if (entry.date !== today) rateLimitMap.delete(key);
+  }
+}, 60 * 60 * 1000).unref();
 
 function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
   const limit = parseInt(process.env.DAILY_GENERATION_LIMIT ?? '0');
@@ -56,6 +102,18 @@ function fmtTokenLog(label: string, usage: TokenUsage, total: TokenUsage): strin
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  // 인증 이중 확인 (미들웨어 외 route 레벨 방어)
+  if (process.env.ACCESS_PASSWORD) {
+    const token = req.cookies.get('aicast-auth')?.value ?? '';
+    const expected = process.env.ACCESS_TOKEN ?? '';
+    if (!tokenEqual(token, expected)) {
+      return new Response(JSON.stringify({ error: '인증이 필요합니다.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  }
+
   // Rate limit 체크
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     ?? req.headers.get('x-real-ip')
@@ -79,8 +137,9 @@ export async function POST(req: NextRequest): Promise<Response> {
     directScript,
   } = body;
 
-  if (!directScript && !topic?.trim()) {
-    return new Response(JSON.stringify({ error: '주제를 입력해주세요.' }), {
+  const validationError = validateRequest(body);
+  if (validationError) {
+    return new Response(JSON.stringify({ error: validationError }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -208,8 +267,9 @@ export async function POST(req: NextRequest): Promise<Response> {
           totalCostUsd: calcCost(totalUsage),
         });
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
-        send('error', { message, code: 'GENERATION_FAILED' });
+        const raw = err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.';
+        console.error('[AiCast] 생성 오류:', raw);
+        send('error', { message: sanitizeError(raw), code: 'GENERATION_FAILED' });
       } finally {
         controller.close();
       }
