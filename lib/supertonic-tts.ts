@@ -106,29 +106,6 @@ function httpPost(path: string, body: object, timeoutMs = 120_000): Promise<unkn
   });
 }
 
-function httpGet(path: string, timeoutMs = 5_000): Promise<unknown> {
-  const url = new URL(SUPERTONIC_HOST);
-
-  return new Promise((resolve, reject) => {
-    const req = http.request(
-      { hostname: url.hostname, port: Number(url.port) || 80, path, method: 'GET' },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on('data', (c: Buffer) => chunks.push(c));
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(Buffer.concat(chunks).toString('utf-8')));
-          } catch (e) {
-            reject(e);
-          }
-        });
-      }
-    );
-    req.setTimeout(timeoutMs, () => { req.destroy(); reject(new Error('timeout')); });
-    req.on('error', reject);
-    req.end();
-  });
-}
 
 function concatWavBuffers(buffers: Buffer[]): Buffer {
   if (buffers.length === 0) throw new Error('WAV 버퍼가 없습니다');
@@ -179,11 +156,3 @@ export async function synthesizeChunksSupertonic(
   return concatWavBuffers(wavBuffers);
 }
 
-export async function checkSupertonicHealth(): Promise<{ ready: boolean; error?: string }> {
-  try {
-    await httpGet('/v1/styles');
-    return { ready: true };
-  } catch {
-    return { ready: false, error: 'Supertonic TTS 서버에 연결할 수 없습니다.' };
-  }
-}
