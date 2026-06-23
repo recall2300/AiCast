@@ -280,7 +280,11 @@ export default function HomePage() {
         {authEnabled && (
           <button
             onClick={async () => {
-              await fetch('/api/auth/logout', { method: 'POST' });
+              try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+              } catch (err) {
+                console.warn('[AiCast] 로그아웃 요청 실패:', err);
+              }
               router.push('/login');
             }}
             className="h-9 px-3 rounded-lg text-xs font-medium transition-all focus:outline-none"
@@ -708,11 +712,14 @@ export default function HomePage() {
                   onClick={() => {
                     const blob = new Blob([scriptText], { type: 'text/plain;charset=utf-8' });
                     const url  = URL.createObjectURL(blob);
-                    const a    = document.createElement('a');
-                    a.href     = url;
-                    a.download = `aicast-${topic.slice(0, 20).replace(/\s+/g, '-') || 'script'}.txt`;
-                    a.click();
-                    URL.revokeObjectURL(url);
+                    try {
+                      const a    = document.createElement('a');
+                      a.href     = url;
+                      a.download = `aicast-${topic.slice(0, 20).replace(/\s+/g, '-') || 'script'}.txt`;
+                      a.click();
+                    } finally {
+                      URL.revokeObjectURL(url);
+                    }
                   }}
                   className="text-xs px-2 py-1 rounded transition-colors focus:outline-none"
                   style={{ color: 'var(--fg-2)', border: '1px solid var(--card-border)' }}
