@@ -1,13 +1,16 @@
-# AiCast 배포 가이드 (미니 PC + ngrok)
+# AiCast 배포 가이드 (미니 PC + WSL2 + ngrok)
 
-> 미니 PC(Windows)를 서버로 사용해 인터넷에 공개하는 전체 절차입니다.
+> 미니 PC(Windows)를 서버로 사용해 인터넷에 공개하는 전체 절차입니다.  
+> WSL2(Ubuntu) 위에서 systemd 서비스로 실행하므로 RDP 없이 SSH로만 관리합니다.
 
 ---
 
 ## 전체 흐름
 
 ```
-개발 PC  →  GitHub  →  미니 PC (서버)  →  ngrok  →  인터넷
+개발 PC  →  GitHub  →  미니 PC WSL2(Ubuntu)  →  ngrok  →  인터넷
+                              ↑
+                    SSH로 원격 관리 (포트 2222)
 ```
 
 ---
@@ -20,165 +23,268 @@
 ### 2. 푸시
 ```powershell
 cd C:\Code\AiCast
-
 git remote add origin https://github.com/본인계정/AiCast.git
 git push -u origin main
 ```
 
-> `.env.local`은 `.gitignore`에 포함되어 있어 자동으로 제외됩니다.  
-> API 키가 GitHub에 올라가지 않습니다.
+> `.env.local`은 `.gitignore`에 포함되어 있어 자동으로 제외됩니다.
 
 ---
 
 ## Part B — 미니 PC 초기 설정 (최초 1회)
 
-### 1. 필수 프로그램 설치
+### 1. Windows 계정 설정
+
+**중요:** Task Scheduler로 WSL 자동 시작을 하려면 **로컬 계정**이 필요합니다.  
+Microsoft 계정을 사용 중이라면: `설정 → 계정 → 사용자 정보 → 로컬 계정으로 로그인`
+
+### 2. WSL2 + Ubuntu 설치
+PowerShell (관리자):
 ```powershell
-# Git
-winget install Git.Git
+wsl --install
+```
+설치 후 **재부팅** → Ubuntu 창에서 username/password 설정.
 
-# Node.js LTS
-winget install OpenJS.NodeJS.LTS
+### 3. WSL2 설정
 
-# Python 3.11
-winget install Python.Python.3.11
+**mirrored 네트워킹** (WSL2 IP = Windows IP, SSH 포트포워딩 불필요):
 
-# ngrok
-winget install --id Ngrok.Ngrok
+`%USERPROFILE%\.wslconfig` 파일 생성:
+```powershell
+notepad "$env:USERPROFILE\.wslconfig"
+```
+```ini
+[wsl2]
+networkingMode=mirrored
 ```
 
-설치 후 **PowerShell 재시작**.
+**systemd 활성화** (WSL Ubuntu 안에서):
+```bash
+sudo nano /etc/wsl.conf
+```
+```ini
+[boot]
+systemd=true
+```
 
-### 2. 레포 클론
+WSL 재시작:
 ```powershell
-cd C:\
+wsl --shutdown
+wsl
+```
+
+### 4. Ubuntu 안에서 소프트웨어 설치
+
+**Node.js:**
+```bash
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+**Python + Supertonic:**
+```bash
+sudo apt-get install -y pipx
+pipx install "supertonic[serve]"
+pipx ensurepath
+source ~/.bashrc
+```
+
+**ngrok:**
+```bash
+sudo snap install ngrok
+ngrok config add-authtoken 여기에ngrok토큰입력
+```
+ngrok 토큰: [ngrok.com](https://ngrok.com) → 대시보드 → **Your Authtoken**
+
+### 5. WSL SSH 서버 설정
+
+```bash
+sudo apt-get install -y openssh-server
+sudo nano /etc/ssh/sshd_config
+```
+
+`#Port 22` → `Port 2222` 로 변경 후:
+
+```bash
+sudo systemctl enable ssh
+sudo systemctl start ssh
+```
+
+Windows 방화벽 열기 (PowerShell 관리자):
+```powershell
+New-NetFirewallRule -DisplayName "WSL SSH" -Direction Inbound -Protocol TCP -LocalPort 2222 -Action Allow
+```
+
+### 6. Windows SSH 서버 설치 (복구용)
+
+```powershell
+Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+Set-Service -Name sshd -StartupType Automatic
+Start-Service sshd
+New-NetFirewallRule -DisplayName "Windows SSH" -Direction Inbound -Protocol TCP -LocalPort 22 -Action Allow
+```
+
+> WSL이 꺼진 상태에서도 Windows SSH(포트 22)로 접속 후 `wsl` 명령으로 복구 가능합니다.
+
+### 7. 레포 클론 + 빌드 (WSL Ubuntu 안에서)
+
+```bash
+cd ~
 git clone https://github.com/본인계정/AiCast.git AiCast
 cd AiCast
-```
-
-### 3. Node.js 의존성 설치
-```powershell
 npm install
-```
-
-### 4. Supertonic 설치
-```powershell
-pip install "supertonic[serve]"
-```
-
-> `supertonic serve` 실행 시 모델 파일이 자동으로 다운로드됩니다 (최초 1회, 수분 소요).
-
-### 5. `.env.local` 생성
-```powershell
-notepad .env.local
-```
-
-아래 내용 입력 후 저장:
-```
-ANTHROPIC_API_KEY=sk-ant-api03-실제키입력
-SUPERTONIC_TTS_URL=http://localhost:7799
-ACCESS_PASSWORD=원하는비밀번호
-ACCESS_TOKEN=랜덤문자열여기입력
-DAILY_GENERATION_LIMIT=10
-```
-
-**ACCESS_TOKEN 랜덤 값 생성:**
-```powershell
--join ((65..90) + (97..122) + (48..57) | Get-Random -Count 40 | % {[char]$_})
-```
-출력된 값을 복사해서 ACCESS_TOKEN에 붙여넣기.
-
-### 6. 프로덕션 빌드
-```powershell
 npm run build
 ```
 
----
+### 8. .env.local 생성
 
-## Part C — ngrok 설정 (최초 1회)
+```bash
+# ACCESS_TOKEN 랜덤값 생성
+cat /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 40
 
-### 1. ngrok 계정 생성
-[ngrok.com](https://ngrok.com) → Sign up (무료)
-
-### 2. Authtoken 등록
-ngrok 대시보드 → 왼쪽 메뉴 **"Your Authtoken"** → 복사 후:
-```powershell
-ngrok config add-authtoken 복사한토큰
+nano ~/AiCast/.env.local
 ```
 
-### 3. 무료 고정 도메인 발급
-ngrok 대시보드 → 왼쪽 메뉴 **"Domains"** → **"New Domain"**  
-예: `your-name.ngrok-free.dev`
-
----
-
-## Part D — 앱 실행
-
-터미널 3개를 열어 각각 실행합니다.
-
-**터미널 1 — Supertonic TTS 서버:**
-```powershell
-supertonic serve
 ```
-
-**터미널 2 — Next.js 앱:**
-```powershell
-cd C:\AiCast
-npm start
+ANTHROPIC_API_KEY=sk-ant-api03-실제키입력
+SUPERTONIC_TTS_URL=http://localhost:7788
+ACCESS_PASSWORD=원하는비밀번호
+ACCESS_TOKEN=위에서생성한랜덤값
+DAILY_GENERATION_LIMIT=10
 ```
-
-**터미널 3 — ngrok 터널:**
-```powershell
-ngrok http --domain=your-name.ngrok-free.dev 3000
-```
-
-아래처럼 나오면 정상:
-```
-Forwarding  https://your-name.ngrok-free.dev -> http://localhost:3000
-```
-
-브라우저에서 `https://your-name.ngrok-free.dev` 접속 → 비밀번호 입력 → 사용
 
 ---
 
-## Part E — PC 부팅 시 자동 시작 설정
+## Part C — ngrok 고정 도메인 발급 (최초 1회)
 
-### 1. `start-prod.bat` 파일 생성
-`C:\AiCast\start-prod.bat`:
-```batch
-@echo off
-taskkill /F /IM supertonic.exe /T >nul 2>&1
-taskkill /F /IM node.exe /T >nul 2>&1
-taskkill /F /IM ngrok.exe /T >nul 2>&1
-
-start "Supertonic" supertonic serve
-timeout /t 8 /nobreak >nul
-
-start "AiCast" cmd /k "cd /d C:\AiCast && npm start"
-timeout /t 5 /nobreak >nul
-
-start "ngrok" ngrok http --domain=your-name.ngrok-free.dev 3000
-
-echo.
-echo AiCast 실행 중
-echo https://your-name.ngrok-free.dev
-```
-
-### 2. `autostart.vbs` 파일 생성 (백그라운드 실행용)
-`C:\AiCast\autostart.vbs`:
-```vbs
-Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run chr(34) & "C:\AiCast\start-prod.bat" & chr(34), 0
-Set WshShell = Nothing
-```
-
-### 3. 시작 프로그램에 등록
-1. `Win + R` → `shell:startup` 입력 → 폴더 열림
-2. `autostart.vbs`의 **바로가기**를 그 폴더에 복사
+1. [ngrok.com](https://ngrok.com) → Sign up (무료)
+2. 대시보드 → **"Domains"** → **"New Domain"**
+3. 발급된 도메인 메모 (예: `your-name.ngrok-free.dev`)
 
 ---
 
-## Part F — 코드 업데이트 루틴
+## Part D — systemd 서비스 등록 (최초 1회)
+
+WSL Ubuntu 안에서:
+
+**① Supertonic:**
+```bash
+sudo nano /etc/systemd/system/supertonic.service
+```
+```ini
+[Unit]
+Description=Supertonic TTS Server
+After=network.target
+
+[Service]
+Type=simple
+User=여기에WSL유저명
+ExecStart=/home/여기에WSL유저명/.local/bin/supertonic serve
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**② AiCast:**
+```bash
+sudo nano /etc/systemd/system/aicast.service
+```
+```ini
+[Unit]
+Description=AiCast Next.js App
+After=network.target supertonic.service
+
+[Service]
+Type=simple
+User=여기에WSL유저명
+WorkingDirectory=/home/여기에WSL유저명/AiCast
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**③ ngrok:**
+```bash
+sudo nano /etc/systemd/system/ngrok.service
+```
+```ini
+[Unit]
+Description=ngrok Tunnel
+After=network.target aicast.service
+
+[Service]
+Type=simple
+User=여기에WSL유저명
+ExecStart=/snap/bin/ngrok http --domain=your-name.ngrok-free.dev 3000
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**활성화:**
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable supertonic aicast ngrok
+sudo systemctl start supertonic aicast ngrok
+```
+
+**상태 확인:**
+```bash
+sudo systemctl status supertonic aicast ngrok
+```
+
+---
+
+## Part E — 부팅 시 WSL 자동 시작 (최초 1회)
+
+WSL이 부팅 시 자동으로 켜지도록 Windows Task Scheduler에 등록합니다.
+
+**자동 로그인 설정** (PowerShell 관리자):
+```powershell
+$RegPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
+Set-ItemProperty -Path $RegPath -Name "AutoAdminLogon" -Value "1"
+Set-ItemProperty -Path $RegPath -Name "DefaultUserName" -Value "윈도우유저명"
+Set-ItemProperty -Path $RegPath -Name "DefaultPassword" -Value "윈도우비밀번호"
+```
+
+**Task Scheduler 등록:**
+```powershell
+$cred = Get-Credential -UserName "컴퓨터이름\윈도우유저명" -Message "Windows 비밀번호 입력"
+$action = New-ScheduledTaskAction -Execute "wsl.exe" -Argument "-d Ubuntu -- /bin/bash -c 'sleep infinity'"
+$trigger = New-ScheduledTaskTrigger -AtStartup
+$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0
+Register-ScheduledTask -TaskName "WSL2 Autostart" -Action $action -Trigger $trigger -Settings $settings -RunLevel Highest -User $cred.UserName -Password $cred.GetNetworkCredential().Password
+```
+
+> `컴퓨터이름\윈도우유저명` 확인: PowerShell에서 `whoami`
+
+---
+
+## Part F — 원격 관리 (SSH)
+
+개발 PC VSCode에서 `~/.ssh/config`:
+```
+Host minipc
+  HostName 미니PC-IP주소
+  User WSL유저명
+  Port 2222
+```
+
+접속: VSCode → Remote Explorer → minipc → Linux 선택
+
+미니 PC IP 확인: PowerShell에서 `ipconfig`
+
+---
+
+## Part G — 코드 업데이트 루틴
 
 **개발 PC에서:**
 ```powershell
@@ -187,13 +293,13 @@ git commit -m "변경 내용"
 git push
 ```
 
-**미니 PC에서:**
-```powershell
-cd C:\AiCast
+**미니 PC SSH에서:**
+```bash
+cd ~/AiCast
 git pull
 npm install       # package.json이 바뀐 경우만
 npm run build
-# start-prod.bat 재실행
+sudo systemctl restart aicast
 ```
 
 ---
@@ -208,3 +314,14 @@ npm run build
 
 > 세 값 모두 `.env.local`에만 존재하며 GitHub에 올라가지 않습니다.  
 > `ACCESS_PASSWORD` 미설정 시 인증이 비활성화됩니다 (로컬 개발용).
+
+---
+
+## 문제 해결
+
+| 증상 | 원인 | 해결 |
+|---|---|---|
+| SSH 2222 안됨 | WSL이 꺼짐 | Windows SSH(22)로 접속 후 `wsl` 실행 |
+| ngrok URL 접속 불가 | ngrok 서비스 중단 | `sudo systemctl restart ngrok` |
+| TTS 오류 | Supertonic 중단 | `sudo systemctl restart supertonic` |
+| 재부팅 후 안됨 | Task Scheduler 미실행 | RDP 접속 후 `wsl` 수동 실행 |

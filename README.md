@@ -48,7 +48,7 @@ cp .env.local.example .env.local
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-api03-실제키입력
-SUPERTONIC_TTS_URL=http://localhost:7799
+SUPERTONIC_TTS_URL=http://localhost:7788
 ```
 
 접근 제어는 로컬 개발 시 설정 불필요 (`ACCESS_PASSWORD` 미설정 → 인증 비활성화).
@@ -98,11 +98,8 @@ AiCast/
 │   └── constants.ts                # 설정 상수 (보이스, 톤, 시간 등)
 ├── middleware.ts                   # 인증 미들웨어
 ├── types/podcast.ts                # TypeScript 타입 정의
-├── supertonic_server/
-│   ├── setup.bat
-│   └── start.bat
-├── DEPLOY.md                       # 미니 PC 배포 가이드
-└── dev.bat                         # 원클릭 개발 실행
+├── DEPLOY.md                       # 미니 PC 배포 가이드 (WSL2 + ngrok)
+└── dev.bat                         # 원클릭 개발 실행 (Windows)
 ```
 
 ---
@@ -112,7 +109,7 @@ AiCast/
 | 변수 | 필수 | 설명 |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | ✅ | Anthropic API 키 |
-| `SUPERTONIC_TTS_URL` | | Supertonic 서버 주소 (기본값: `http://localhost:7799`) |
+| `SUPERTONIC_TTS_URL` | | Supertonic 서버 주소 (기본값: `http://localhost:7788`) |
 | `ACCESS_PASSWORD` | | 공개 배포 시 접속 비밀번호. 미설정 시 인증 비활성화 |
 | `ACCESS_TOKEN` | | 세션 쿠키 값 (랜덤 문자열). `ACCESS_PASSWORD`와 함께 설정 |
 | `DAILY_GENERATION_LIMIT` | | IP당 하루 최대 생성 횟수. 미설정 시 무제한 |
@@ -131,13 +128,13 @@ AiCast/
 
 ---
 
-## 배포 (미니 PC + ngrok)
+## 배포 (미니 PC + WSL2 + ngrok)
 
 외부 공개 배포 절차는 [DEPLOY.md](DEPLOY.md)를 참조하세요.
 
-**요약:**
-1. 미니 PC에 Git, Node.js, Python, ngrok 설치
-2. 레포 클론 후 `npm install` + `pip install "supertonic[serve]"`
-3. `.env.local`에 API 키 + 접근 제어 설정
-4. `npm run build`
-5. `supertonic serve` + `npm start` + `ngrok http --domain=your-domain.ngrok-free.dev 3000`
+**구성 요약:**
+- Windows 미니 PC에 WSL2(Ubuntu) 설치
+- Ubuntu 안에서 systemd 서비스로 Supertonic / AiCast / ngrok 상시 실행
+- Task Scheduler + 자동 로그인으로 부팅 시 WSL 자동 시작
+- SSH(포트 2222)로 원격 관리 — RDP 불필요
+- 외부 접속: `https://your-name.ngrok-free.dev`
