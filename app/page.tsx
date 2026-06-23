@@ -144,6 +144,7 @@ export default function HomePage() {
   const [audioSkipped, setAudioSkipped] = useState(false);
   const [errorMsg,     setErrorMsg]     = useState<string | null>(null);
   const [wordCount,    setWordCount]    = useState(0);
+  const [copyLabel,    setCopyLabel]    = useState<'복사' | '복사됨!' | '복사 실패'>('복사');
   const prevAudioUrlRef = useRef<string | null>(null);
   const msgIdCounterRef = useRef(0);
 
@@ -704,11 +705,31 @@ export default function HomePage() {
               </h2>
               <div className="flex gap-2">
                 <button
-                  onClick={() => navigator.clipboard.writeText(scriptText)}
+                  onClick={async () => {
+                    try {
+                      if (navigator.clipboard?.writeText) {
+                        await navigator.clipboard.writeText(scriptText);
+                      } else {
+                        const ta = document.createElement('textarea');
+                        ta.value = scriptText;
+                        ta.style.position = 'fixed';
+                        ta.style.opacity = '0';
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                      }
+                      setCopyLabel('복사됨!');
+                    } catch {
+                      setCopyLabel('복사 실패');
+                    } finally {
+                      setTimeout(() => setCopyLabel('복사'), 2000);
+                    }
+                  }}
                   className="text-xs px-2 py-1 rounded transition-colors focus:outline-none"
                   style={{ color: 'var(--fg-2)', border: '1px solid var(--card-border)' }}
                 >
-                  복사
+                  {copyLabel}
                 </button>
                 <button
                   onClick={() => {
