@@ -8,12 +8,12 @@ export type BroadcastTone =
   | 'morning';
 
 export interface PodcastRequest {
-  topic: string;
+  topic?: string;
   durationMin: DurationMinutes;
-  voiceId: string;
-  steps: number;
-  speed: number;
-  tone: BroadcastTone;
+  voiceId?: string;
+  steps?: number;
+  speed?: number;
+  tone?: BroadcastTone;
   directScript?: string;
 }
 
